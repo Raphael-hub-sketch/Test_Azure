@@ -1,0 +1,32 @@
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+
+- bash: |
+    echo "Sending Data to Binadox"
+    if [ -n "$(System.PullRequest.PullRequestId)" ]; then
+      export EVENT_NAME=pull_request;
+    else
+      export EVENT_NAME=push;
+    fi
+    echo $EVENT_NAME
+    RESULT=$(curl -sw '%{http_code}' -X POST "$(BINADOX_SERVER_URL)" -H 'Content-Type:application/json' -H "Authorization:ApiToken $(BINADOX_SECRET_TOKEN)" -d "{
+      \"project\":\""$(BINADOX_PROJECT_NAME)"\", 
+        \"azure_data\":{
+          \"eventName\":\"$(EVENT_NAME)\",
+          \"branch\":\""$(Build.SourceBranchName)"\",
+          \"commit\":\""$(Build.SourceVersion)"\",
+          \"workspace\":\""$(Pipeline.Workspace)"\",
+          \"repository\":\""$(Build.Repository.Name)"\"
+        }
+    }")
+    echo $RESULT
+    if [[ "$RESULT" == 200 ]]; then 
+      echo "Binadox Structure-As-Code Analyzer Request sent";
+      exit 0;
+    else 
+      echo "Binadox Structure-As-Code Analyzer Request failed";
+      exit 1;
+    fi
+  displayName: 'binadox-analyze'
